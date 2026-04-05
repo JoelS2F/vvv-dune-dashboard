@@ -1,19 +1,7 @@
-# Env / secrets
 .env
-*.env
-
-# Dune API keys
-.dune_api_key
-
-# Python
+dune_session.json
+query_manifest.json
+deploy_report_*.json
+debug_*.png
 __pycache__/
 *.pyc
-.venv/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db

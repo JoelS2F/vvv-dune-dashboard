@@ -1,8 +1,9 @@
--- Panel 10A: DIEM Mint Acceleration Ratio
-
 -- PANEL 10A: DIEM Mint Acceleration Ratio
--- Compares each day's minting vs trailing 7-day average (excluding current day)
+-- Compares each day's minting vs trailing 7-day average
 -- Visualization: bar chart with acceleration ratio line overlay
+-- DIEM contract on Base: 0xf4d97f2da56e8c3098f3a8d538db630a2606a024
+-- Thresholds: >2x = notable migration | >5x = migration wave
+
 WITH daily_mints AS (
     SELECT
         DATE_TRUNC('day', block_time) AS day,

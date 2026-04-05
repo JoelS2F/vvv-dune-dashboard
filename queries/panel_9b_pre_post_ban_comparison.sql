@@ -1,9 +1,9 @@
--- Panel 9B: Pre-Ban vs Post-Ban Staking Comparison
-
 -- PANEL 9B: Pre-Ban vs Post-Ban Staking Comparison
 -- Summary counter showing acceleration factor
--- Ban timestamp: April 4, 2026 19:00 UTC (12pm PT)
 -- Visualization: two big numbers side by side
+-- Ban timestamp: April 4, 2026 19:00 UTC (12pm PT)
+-- sVVV staking contract: 0x321b7ff75154472B18EDb199033fF4D116F340Ff
+
 WITH staking_events AS (
     SELECT
         "from" AS staker,
@@ -11,7 +11,7 @@ WITH staking_events AS (
     FROM tokens.transfers
     WHERE blockchain = 'base'
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
-      AND "to" = 0x321b7ff75154472b18edb199033ff4d116f340ff
+      AND "to" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff
       AND block_time >= DATE '2026-03-01'
 ),
 first_stakes AS (
@@ -29,15 +29,15 @@ periods AS (
         staker,
         first_stake_time
     FROM first_stakes
-    WHERE first_stake_time >= DATE '2026-03-04'     -- 30 days pre-ban window
+    WHERE first_stake_time >= DATE '2026-03-04'  -- 30 days pre-ban window
 )
 SELECT
     period,
     COUNT(*) AS new_stakers,
-    COUNT(*) * 1.0 / GREATEST(DATE_DIFF('day',
+    COUNT(*) * 1.0 / NULLIF(DATE_DIFF('day',
         MIN(first_stake_time),
         MAX(first_stake_time)
-    ), 1) AS stakers_per_day,
+    ), 0) AS stakers_per_day,
     MIN(first_stake_time) AS period_start,
     MAX(first_stake_time) AS period_end
 FROM periods

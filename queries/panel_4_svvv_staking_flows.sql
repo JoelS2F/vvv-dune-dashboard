@@ -1,31 +1,31 @@
--- Panel 4: sVVV Staking Flow (Conviction Proxy)
-
 -- PANEL 4: sVVV Staking Flows
 -- Track VVV transfers TO the staking contract (stakes) vs FROM (unstakes)
+-- sVVV staking contract: 0x321b7ff75154472B18EDb199033fF4D116F340Ff
+
 WITH staking_flows AS (
     SELECT
         DATE_TRUNC('day', block_time) AS day,
         SUM(CASE
-            WHEN "to" = 0x321b7ff75154472b18edb199033ff4d116f340ff THEN amount / 1e18
+            WHEN "to" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN amount / 1e18
             ELSE 0
         END) AS tokens_staked,
         SUM(CASE
-            WHEN "from" = 0x321b7ff75154472b18edb199033ff4d116f340ff THEN amount / 1e18
+            WHEN "from" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN amount / 1e18
             ELSE 0
         END) AS tokens_unstaked,
         COUNT(DISTINCT CASE
-            WHEN "to" = 0x321b7ff75154472b18edb199033ff4d116f340ff THEN "from"
+            WHEN "to" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN "from"
         END) AS unique_stakers,
         COUNT(DISTINCT CASE
-            WHEN "from" = 0x321b7ff75154472b18edb199033ff4d116f340ff THEN "to"
+            WHEN "from" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN "to"
         END) AS unique_unstakers
     FROM tokens.transfers
     WHERE blockchain = 'base'
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
       AND block_time >= NOW() - INTERVAL '90' day
       AND (
-          "to" = 0x321b7ff75154472b18edb199033ff4d116f340ff
-          OR "from" = 0x321b7ff75154472b18edb199033ff4d116f340ff
+          "to" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff
+          OR "from" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff
       )
     GROUP BY 1
 ),

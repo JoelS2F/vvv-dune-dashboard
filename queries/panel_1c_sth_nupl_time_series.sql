@@ -1,8 +1,7 @@
--- Panel 1C: STH-NUPL Time Series (30-day history)
-
 -- PANEL 1C: STH-NUPL Time Series (daily rolling 72hr window)
--- Track how new entrant sentiment evolves over time
+-- Tracks how new entrant sentiment evolves over time
 -- Visualization: line chart with colored phase bands
+
 WITH date_series AS (
     SELECT dt
     FROM UNNEST(SEQUENCE(
@@ -20,7 +19,7 @@ vvv_transfers AS (
     FROM tokens.transfers
     WHERE blockchain = 'base'
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
-      AND block_time >= CURRENT_DATE - INTERVAL '33' day
+      AND block_time >= CURRENT_DATE - INTERVAL '33' day  -- 30 days + 3 day lookback
       AND "to" != 0x0000000000000000000000000000000000000000
       AND amount > 0
 ),

@@ -1,8 +1,8 @@
--- Panel 10B: New DIEM Minter Wallets (first-time minters)
-
 -- PANEL 10B: New DIEM Minter Wallets (first-time minters)
 -- Wallets minting DIEM for the first time = new compute consumers
--- Cross-reference with Panel 9 to see staker→minter conversion funnel
+-- Cross-reference with Panel 9 to see staker->minter conversion funnel
+-- DIEM contract on Base: 0xf4d97f2da56e8c3098f3a8d538db630a2606a024
+
 WITH mint_events AS (
     SELECT
         "to" AS minter,

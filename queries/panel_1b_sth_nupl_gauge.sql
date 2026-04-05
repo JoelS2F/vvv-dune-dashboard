@@ -1,7 +1,6 @@
--- Panel 1B: Aggregate STH-NUPL Gauge (headline metric)
-
 -- PANEL 1B: Aggregate STH-NUPL Gauge (single number + phase)
--- This is the headline metric for the dashboard
+-- Headline metric for the dashboard
+
 WITH vvv_transfers AS (
     SELECT
         "to" AS wallet,

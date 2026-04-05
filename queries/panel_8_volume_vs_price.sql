@@ -1,7 +1,6 @@
--- Panel 8: Transfer Volume vs Price (Divergence Detection)
-
 -- PANEL 8: Transfer Volume vs Price Overlay
 -- Visualization: dual-axis chart (volume bars + price line)
+
 SELECT
     DATE_TRUNC('day', t.block_time) AS day,
     COUNT(*) AS num_transfers,

@@ -1,8 +1,7 @@
--- Panel 7: Buy/Sell Pressure Ratio (DEX Trade Direction)
-
 -- PANEL 7: DEX Buy/Sell Ratio
 -- Uses dex.trades to classify trade direction
 -- Buy = VVV is token_bought | Sell = VVV is token_sold
+
 WITH vvv_dex_trades AS (
     SELECT
         DATE_TRUNC('day', block_time) AS day,

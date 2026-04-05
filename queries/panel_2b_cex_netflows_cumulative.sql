@@ -1,18 +1,12 @@
--- Panel 2B: Cumulative CEX Netflow (90-day running total)
-
 -- PANEL 2B: Cumulative CEX Netflow (running total)
 -- Shows whether exchanges are accumulating or draining over time
--- Visualization: area chart — below zero = bullish
+-- Visualization: area chart - below zero = bullish
+
 WITH cex_addresses AS (
-    SELECT DISTINCT address FROM cex.addresses WHERE blockchain = 'base'
-    UNION
-    SELECT DISTINCT address FROM labels.addresses
-    WHERE blockchain = 'base' AND label_type = 'cex'
-    UNION
-    SELECT address FROM (VALUES
-        (0x20fe562d797a42dcb3399062ae9546cd06f63280),
-        (0x71660c4005ba85c37ccec55d0c4493e66fe775d3)
-    ) AS t(address)
+    SELECT DISTINCT address
+    FROM labels.addresses
+    WHERE blockchain = 'base'
+      AND label_type = 'cex'
 ),
 daily_flows AS (
     SELECT

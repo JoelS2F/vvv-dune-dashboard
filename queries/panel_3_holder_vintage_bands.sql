@@ -1,8 +1,7 @@
--- Panel 3: Holder Vintage Bands
-
 -- PANEL 3: Holder Cohort Analysis by Wallet Age
 -- Classifies current holders by when they first received VVV
 -- Visualization: stacked area chart
+
 WITH all_receipts AS (
     SELECT
         "to" AS wallet,
@@ -15,13 +14,24 @@ WITH all_receipts AS (
     GROUP BY "to"
 ),
 current_balances AS (
+    -- Computed from cumulative transfers (balances.erc20_latest not available in DuneSQL)
     SELECT
-        address AS wallet,
-        balance / 1e18 AS vvv_balance
-    FROM balances.erc20_latest
-    WHERE blockchain = 'base'
-      AND token_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
-      AND balance > 0
+        wallet,
+        SUM(delta) / 1e18 AS vvv_balance
+    FROM (
+        SELECT "to" AS wallet, CAST(amount AS DOUBLE) AS delta
+        FROM tokens.transfers
+        WHERE blockchain = 'base'
+          AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
+        UNION ALL
+        SELECT "from" AS wallet, -CAST(amount AS DOUBLE) AS delta
+        FROM tokens.transfers
+        WHERE blockchain = 'base'
+          AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
+    ) t
+    WHERE wallet != 0x0000000000000000000000000000000000000000
+    GROUP BY wallet
+    HAVING SUM(delta) > 0
 ),
 holder_cohorts AS (
     SELECT

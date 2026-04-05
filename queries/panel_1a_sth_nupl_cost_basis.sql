@@ -1,8 +1,7 @@
--- Panel 1A: New Entrant Acquisition Price & Unrealized PnL
-
 -- PANEL 1A: New Entrant Acquisition Price & Unrealized PnL
 -- Reconstructs Glassnode STH cost basis for ERC-20 on Base
 -- Thresholds: EUPHORIA >40% gain for 80%+ wallets | CAPITULATION >20% loss for 70%+ wallets
+
 WITH vvv_transfers AS (
     SELECT
         "to" AS wallet,
