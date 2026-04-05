@@ -1,0 +1,19 @@
+# Env / secrets
+.env
+*.env
+
+# Dune API keys
+.dune_api_key
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
