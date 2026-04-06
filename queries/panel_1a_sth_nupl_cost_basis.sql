@@ -7,7 +7,7 @@ WITH vvv_transfers AS (
         "to" AS wallet,
         block_time,
         block_number,
-        amount / 1e18 AS vvv_amount,
+        amount AS vvv_amount,
         tx_hash
     FROM tokens.transfers
     WHERE blockchain = 'base'

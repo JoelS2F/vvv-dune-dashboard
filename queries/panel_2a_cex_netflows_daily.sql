@@ -29,7 +29,7 @@ inflows AS (
     -- Tokens going TO exchanges (potential sell pressure)
     SELECT
         DATE_TRUNC('day', t.block_time) AS day,
-        SUM(t.amount / 1e18) AS tokens_in,
+        SUM(t.amount) AS tokens_in,
         COUNT(DISTINCT t."from") AS unique_depositors
     FROM tokens.transfers t
     JOIN cex_addresses cex ON t."to" = cex.address
@@ -42,7 +42,7 @@ outflows AS (
     -- Tokens leaving exchanges (accumulation / self-custody)
     SELECT
         DATE_TRUNC('day', t.block_time) AS day,
-        SUM(t.amount / 1e18) AS tokens_out,
+        SUM(t.amount) AS tokens_out,
         COUNT(DISTINCT t."to") AS unique_withdrawers
     FROM tokens.transfers t
     JOIN cex_addresses cex ON t."from" = cex.address

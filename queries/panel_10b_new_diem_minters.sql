@@ -7,7 +7,7 @@ WITH mint_events AS (
     SELECT
         "to" AS minter,
         block_time,
-        amount / 1e18 AS diem_amount
+        amount AS diem_amount
     FROM tokens.transfers
     WHERE blockchain = 'base'
       AND contract_address = 0xf4d97f2da56e8c3098f3a8d538db630a2606a024

@@ -7,7 +7,7 @@
 WITH daily_mints AS (
     SELECT
         DATE_TRUNC('day', block_time) AS day,
-        SUM(amount / 1e18) AS diem_minted,
+        SUM(amount) AS diem_minted,
         COUNT(DISTINCT "to") AS unique_minters
     FROM tokens.transfers
     WHERE blockchain = 'base'

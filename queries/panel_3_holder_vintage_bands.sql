@@ -17,7 +17,7 @@ current_balances AS (
     -- Computed from cumulative transfers (balances.erc20_latest not available in DuneSQL)
     SELECT
         wallet,
-        SUM(delta) / 1e18 AS vvv_balance
+        SUM(delta) AS vvv_balance
     FROM (
         SELECT "to" AS wallet, CAST(amount AS DOUBLE) AS delta
         FROM tokens.transfers

@@ -8,11 +8,11 @@ WITH diem_activity AS (
         DATE_TRUNC('day', block_time) AS day,
         SUM(CASE
             WHEN "from" = 0x0000000000000000000000000000000000000000
-            THEN amount / 1e18 ELSE 0
+            THEN amount ELSE 0
         END) AS diem_minted,
         SUM(CASE
             WHEN "to" = 0x0000000000000000000000000000000000000000
-            THEN amount / 1e18 ELSE 0
+            THEN amount ELSE 0
         END) AS diem_burned,
         COUNT(DISTINCT CASE
             WHEN "from" = 0x0000000000000000000000000000000000000000

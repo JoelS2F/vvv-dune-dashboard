@@ -5,8 +5,8 @@ SELECT
     DATE_TRUNC('day', t.block_time) AS day,
     COUNT(*) AS num_transfers,
     COUNT(DISTINCT t."from") + COUNT(DISTINCT t."to") AS active_addresses,
-    SUM(t.amount / 1e18) AS total_vvv_transferred,
-    SUM(t.amount / 1e18) * p.avg_price AS volume_usd,
+    SUM(t.amount) AS total_vvv_transferred,
+    SUM(t.amount) * p.avg_price AS volume_usd,
     p.avg_price AS vvv_price
 FROM tokens.transfers t
 LEFT JOIN (

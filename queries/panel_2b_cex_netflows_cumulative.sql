@@ -27,8 +27,8 @@ WITH cex_addresses AS (
 daily_flows AS (
     SELECT
         DATE_TRUNC('day', t.block_time) AS day,
-        SUM(CASE WHEN cex_to.address IS NOT NULL THEN t.amount / 1e18 ELSE 0 END) AS inflow,
-        SUM(CASE WHEN cex_from.address IS NOT NULL THEN t.amount / 1e18 ELSE 0 END) AS outflow
+        SUM(CASE WHEN cex_to.address IS NOT NULL THEN t.amount ELSE 0 END) AS inflow,
+        SUM(CASE WHEN cex_from.address IS NOT NULL THEN t.amount ELSE 0 END) AS outflow
     FROM tokens.transfers t
     LEFT JOIN cex_addresses cex_to ON t."to" = cex_to.address
     LEFT JOIN cex_addresses cex_from ON t."from" = cex_from.address

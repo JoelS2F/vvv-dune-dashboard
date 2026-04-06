@@ -6,11 +6,11 @@ WITH staking_flows AS (
     SELECT
         DATE_TRUNC('day', block_time) AS day,
         SUM(CASE
-            WHEN "to" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN amount / 1e18
+            WHEN "to" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN amount
             ELSE 0
         END) AS tokens_staked,
         SUM(CASE
-            WHEN "from" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN amount / 1e18
+            WHEN "from" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff THEN amount
             ELSE 0
         END) AS tokens_unstaked,
         COUNT(DISTINCT CASE

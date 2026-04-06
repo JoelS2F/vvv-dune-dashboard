@@ -15,7 +15,7 @@ vvv_transfers AS (
         "to" AS wallet,
         block_time,
         DATE_TRUNC('day', block_time) AS transfer_day,
-        amount / 1e18 AS vvv_amount
+        amount AS vvv_amount
     FROM tokens.transfers
     WHERE blockchain = 'base'
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf

@@ -7,7 +7,7 @@ WITH staking_events AS (
     SELECT
         "from" AS staker,
         block_time,
-        amount / 1e18 AS vvv_staked
+        amount AS vvv_staked
     FROM tokens.transfers
     WHERE blockchain = 'base'
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf

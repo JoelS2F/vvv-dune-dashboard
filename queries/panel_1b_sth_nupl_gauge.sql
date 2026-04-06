@@ -5,7 +5,7 @@ WITH vvv_transfers AS (
     SELECT
         "to" AS wallet,
         block_time,
-        amount / 1e18 AS vvv_amount
+        amount AS vvv_amount
     FROM tokens.transfers
     WHERE blockchain = 'base'
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf

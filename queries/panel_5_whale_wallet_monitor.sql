@@ -6,7 +6,7 @@ WITH current_balances AS (
     -- (full history scan times out on Dune free tier)
     SELECT
         wallet,
-        SUM(delta) / 1e18 AS current_balance
+        SUM(delta) AS current_balance
     FROM (
         SELECT "to" AS wallet, CAST(amount AS DOUBLE) AS delta
         FROM tokens.transfers
@@ -22,7 +22,7 @@ WITH current_balances AS (
     ) t
     WHERE wallet != 0x0000000000000000000000000000000000000000
     GROUP BY wallet
-    HAVING SUM(delta) / 1e18 > 1000  -- minimum 1K VVV net flow in 90d window
+    HAVING SUM(delta) > 1000  -- minimum 1K VVV net flow in 90d window
 ),
 -- Net transfers in the last 7 days per wallet
 recent_net_transfers AS (
@@ -31,7 +31,7 @@ recent_net_transfers AS (
         SUM(net_amount) AS seven_day_change
     FROM (
         -- Inflows
-        SELECT "to" AS wallet, SUM(amount / 1e18) AS net_amount
+        SELECT "to" AS wallet, SUM(amount) AS net_amount
         FROM tokens.transfers
         WHERE blockchain = 'base'
           AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
@@ -41,7 +41,7 @@ recent_net_transfers AS (
         UNION ALL
 
         -- Outflows (negative)
-        SELECT "from" AS wallet, -SUM(amount / 1e18) AS net_amount
+        SELECT "from" AS wallet, -SUM(amount) AS net_amount
         FROM tokens.transfers
         WHERE blockchain = 'base'
           AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
