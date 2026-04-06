@@ -26,6 +26,43 @@ MIN_SIGNAL_EVENTS = 20
 TRAIN_FRACTION = 0.60          # 60 / 40 chronological split
 FORWARD_WINDOWS = [1, 3, 5, 7] # days
 
+# ── Score decay ──────────────────────────────────────────────────────────
+DECAY_HALF_LIFE_DAYS = 14  # Score halves toward neutral every 14 days of staleness
+STALE_THRESHOLD_DAYS = 3   # Flag panels older than this as stale in dashboard
+
+# ── Corrected weights (cross-ref analysis 2026-04-06) ────────────────────
+# Mint/burn Pearson r < 0.05 — no demonstrated price predictive power
+# OI/funding r=0.385/0.366 — best forward predictors
+CORRECTED_WEIGHTS: dict[str, float] = {
+    # Tier 1: Demonstrated price correlation (0.45)
+    "panel_11_derivatives":             0.15,  # NEW — OI r=0.385, funding r=0.366
+    "panel_4_svvv_staking_flows":       0.12,  # Supply lock — whale confirmed
+    "panel_2b_cex_netflows_cumulative": 0.10,  # Exchange exodus
+    "panel_2a_cex_netflows_daily":      0.08,  # Daily flow direction
+    # Tier 2: Structural signals (0.25)
+    "panel_5_whale_wallet_monitor":     0.08,  # Smart money behavior
+    "panel_1c_sth_nupl_time_series":    0.07,  # STH sentiment
+    "panel_1a_sth_nupl_cost_basis":     0.05,  # Cost basis distribution
+    "panel_1b_sth_nupl_gauge":          0.05,  # Aggregate gauge
+    # Tier 3: Low/no correlation — monitoring only (0.15)
+    "panel_3_holder_vintage_bands":     0.03,  # Lagging
+    "panel_8_volume_vs_price":          0.03,  # Volume spikes
+    "panel_6_diem_minting":             0.02,  # REDUCED — r=0.003
+    "panel_10a_diem_mint_acceleration": 0.03,  # Acceleration > level
+    "panel_10b_new_diem_minters":       0.02,  # REDUCED
+    "panel_9b_pre_post_ban_comparison": 0.02,  # Lagging
+    # Tier 4: Near-zero (0.05)
+    "panel_9a_new_stakers_daily":       0.02,
+    "panel_7_dex_buy_sell_ratio":       0.02,
+    "panel_10c_conversion_funnel":      0.01,
+}
+# Wallet spike EXCLUDED — 0% win rate 3-10d, anti-predictive
+# per cross-ref analysis 2026-04-06
+
+# ── Risk flag thresholds ─────────────────────────────────────────────────
+RISK_STAKE_VOL_ZSCORE = -0.7   # Flag net unstaking below this z-score
+RISK_WALLET_ZSCORE = -1.5      # Flag wallet activity collapse
+
 # ── Signal extraction defaults ────────────────────────────────────────────
 ROLLING_WINDOW_SHORT = 7
 ROLLING_WINDOW_LONG = 14
@@ -44,7 +81,7 @@ class PanelConfig:
     panel_id: str
     query_id: int
     name: str
-    section: Literal["A", "B", "C", "D"]
+    section: Literal["A", "B", "C", "D", "E"]
     signal_type: Literal["leading", "coincident", "lagging"]
     data_type: Literal["time_series", "snapshot"]
     signal_direction: Literal["bullish", "bearish", "directional"]
@@ -246,6 +283,19 @@ PANELS: dict[str, PanelConfig] = {
         signal_rule="Funnel stage counts showing healthy conversion from holder -> staker -> minter",
         date_column="snapshot_date",
         metric_column="count",
+    ),
+    # ── Synthetic panels (not from Dune — fed from other data sources) ────
+    "panel_11_derivatives": PanelConfig(
+        panel_id="panel_11_derivatives",
+        query_id=0,  # Synthetic — sourced from DIEM anomaly monitor
+        name="Perpetual Derivatives (OI + Funding)",
+        section="E",
+        signal_type="leading",
+        data_type="time_series",
+        signal_direction="directional",
+        signal_rule="OI z-score + funding z-score blended. r=0.385/0.366 to VVV 1d fwd return",
+        date_column="timestamp",
+        metric_column="oi_zscore",
     ),
 }
 

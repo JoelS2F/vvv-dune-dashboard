@@ -127,6 +127,7 @@ def stage_backtest() -> tuple[dict, dict, dict]:
 def stage_composite(
     all_signals: dict | None = None,
     backtest_results: dict | None = None,
+    diem_data: dict | None = None,
     dry_run: bool = False,
 ) -> dict:
     """Stage 3: Compute composite score + write output."""
@@ -149,8 +150,18 @@ def stage_composite(
             log.error("No backtest results found. Run backtest stage first.")
             return {}
 
-    # Build composite
-    composite = build_composite(all_signals, backtest_results)
+    # Load DIEM anomaly monitor data for derivatives + risk flags
+    if diem_data is None:
+        diem_path = Path("F:/Projects/bd-intelligence-report-generator/trading_data/diem_latest.json")
+        if diem_path.is_file():
+            try:
+                diem_data = json.loads(diem_path.read_text(encoding="utf-8"))
+                log.info("Loaded DIEM anomaly data for derivatives panel + risk flags")
+            except Exception as e:
+                log.warning("Could not load DIEM data: %s", e)
+
+    # Build composite (v2.0: with corrected weights, decay, derivatives, risk flags)
+    composite = build_composite(all_signals, backtest_results, diem_data=diem_data)
 
     # Build full state
     state = build_signal_state(

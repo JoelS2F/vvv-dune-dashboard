@@ -1,5 +1,7 @@
 """
 VVV Signal Intelligence — Output builder & writer
+
+v2.0 (2026-04-06): Adds decayed_score, risk_flags, raw_composite, signal_quality
 """
 from __future__ import annotations
 
@@ -9,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .config import PANELS
+from .config import PANELS, STALE_THRESHOLD_DAYS
 
 log = logging.getLogger(__name__)
 
@@ -25,8 +27,16 @@ def build_signal_state(
 ) -> dict[str, Any]:
     """
     Build the full signal state JSON that the React dashboard consumes.
+
+    v2.0: Includes decayed_score, data_age_days, risk_flags, raw_composite,
+    signal_quality, and derivatives panel data.
     """
     now = datetime.now(timezone.utc)
+
+    panel_details = composite.get("panel_details", {})
+    risk_flags = composite.get("risk_flags", [])
+    signal_quality = composite.get("signal_quality", {})
+    deriv_panel = composite.get("derivatives_panel", {})
 
     # Per-panel detail
     panels_detail: list[dict] = []
@@ -39,13 +49,17 @@ def build_signal_state(
         signals = (all_signals or {}).get(panel_id, [])
         latest_signal = signals[-1] if signals else None
 
-        panels_detail.append({
+        # Decay info from composite pipeline
+        detail = panel_details.get(panel_id, {})
+
+        entry = {
             "panel_id": panel_id,
             "name": cfg.name,
             "section": cfg.section,
             "signal_type": cfg.signal_type,
             "data_type": cfg.data_type,
-            "score": score,
+            "score": detail.get("decayed_score", score),
+            "raw_score": detail.get("raw_score", score),
             "weight": round(weight, 4),
             "n_events": bt.get("n_events", 0),
             "validated": bt.get("validated", False),
@@ -53,11 +67,25 @@ def build_signal_state(
             "best_hit_rate": bt.get("best_hit_rate"),
             "best_window": bt.get("best_window"),
             "latest_signal": latest_signal,
-        })
+            "data_age_days": detail.get("data_age_days"),
+            "is_stale": detail.get("is_stale", False),
+        }
+
+        # Panel 11 (derivatives) gets extra metadata
+        if panel_id == "panel_11_derivatives" and deriv_panel:
+            entry["latest_signal"] = {
+                "date": now.strftime("%Y-%m-%d"),
+                "panel_id": panel_id,
+                "direction": deriv_panel.get("direction", "neutral"),
+                "strength": deriv_panel.get("strength", 0.5),
+                "metadata": deriv_panel.get("metadata", {}),
+            }
+
+        panels_detail.append(entry)
 
     # Section summaries
     sections: dict[str, dict] = {}
-    for sec in ("A", "B", "C", "D"):
+    for sec in ("A", "B", "C", "D", "E"):
         sec_panels = [p for p in panels_detail if p["section"] == sec]
         sec_scores = [p["score"] for p in sec_panels if p["weight"] > 0]
         sec_weights = [p["weight"] for p in sec_panels if p["weight"] > 0]
@@ -73,10 +101,13 @@ def build_signal_state(
         }
 
     state = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "generated_at": now.isoformat(),
         "composite_score": composite.get("composite_score", 50.0),
+        "raw_composite": composite.get("raw_composite", composite.get("composite_score", 50.0)),
         "regime": composite.get("regime", "NEUTRAL"),
+        "risk_flags": risk_flags,
+        "signal_quality": signal_quality,
         "sections": sections,
         "panels": panels_detail,
         "backtest_summary": {
@@ -94,36 +125,28 @@ def write_output(
     local_dir: str | Path,
     remote_dir: str | Path | None = None,
 ) -> list[Path]:
-    """
-    Write signal state JSON to local exports dir and optionally to
-    the signal-command-center remote signals dir.
-    Returns list of written file paths.
-    """
+    """Write signal state JSON to local exports dir and remote signals dir."""
     written: list[Path] = []
 
     local_dir = Path(local_dir)
     local_dir.mkdir(parents=True, exist_ok=True)
 
-    # Timestamped filename
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"vvv_signal_state_{ts}.json"
     latest_name = "vvv_signal_state_latest.json"
 
     content = json.dumps(state, indent=2, default=str)
 
-    # Write timestamped
     local_ts = local_dir / filename
     local_ts.write_text(content, encoding="utf-8")
     written.append(local_ts)
     log.info("Wrote %s", local_ts)
 
-    # Write latest symlink/copy
     local_latest = local_dir / latest_name
     local_latest.write_text(content, encoding="utf-8")
     written.append(local_latest)
     log.info("Wrote %s", local_latest)
 
-    # Remote copy
     if remote_dir is None:
         remote_dir = REMOTE_DIR
 
@@ -143,9 +166,7 @@ def write_backtest_report(
     backtest_results: dict[str, dict],
     output_dir: str | Path,
 ) -> Path:
-    """
-    Write detailed backtest results JSON for audit/debug.
-    """
+    """Write detailed backtest results JSON for audit/debug."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -157,7 +178,6 @@ def write_backtest_report(
     )
     log.info("Wrote backtest report -> %s", path)
 
-    # Also write latest
     latest = output_dir / "backtest_report_latest.json"
     latest.write_text(
         json.dumps(backtest_results, indent=2, default=str),
