@@ -2,7 +2,8 @@
 -- Identifies accumulation or distribution by large wallets
 
 WITH current_balances AS (
-    -- Computed from cumulative transfers (balances.erc20_latest not available in DuneSQL)
+    -- Approximate balances from last 90 days of transfers
+    -- (full history scan times out on Dune free tier)
     SELECT
         wallet,
         SUM(delta) / 1e18 AS current_balance
@@ -11,15 +12,17 @@ WITH current_balances AS (
         FROM tokens.transfers
         WHERE blockchain = 'base'
           AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
+          AND block_time >= NOW() - INTERVAL '90' day
         UNION ALL
         SELECT "from" AS wallet, -CAST(amount AS DOUBLE) AS delta
         FROM tokens.transfers
         WHERE blockchain = 'base'
           AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
+          AND block_time >= NOW() - INTERVAL '90' day
     ) t
     WHERE wallet != 0x0000000000000000000000000000000000000000
     GROUP BY wallet
-    HAVING SUM(delta) / 1e18 > 1000  -- minimum 1K VVV to qualify as whale
+    HAVING SUM(delta) / 1e18 > 1000  -- minimum 1K VVV net flow in 90d window
 ),
 -- Net transfers in the last 7 days per wallet
 recent_net_transfers AS (

@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VVV Signal Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: #FAF8F2;
+    color: #2D2A24;
+    min-height: 100vh;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #FAF8F2; }
+  ::-webkit-scrollbar-thumb { background: #C4BFA8; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
+
+/* ── Constants ───────────────────────────────────────────────────── */
+
+const SECTION_COLORS = { A: '#5B7553', B: '#8B6914', C: '#6B4226', D: '#4A5568' };
+const SECTION_NAMES  = { A: 'STH-NUPL & Staking', B: 'Flow Analysis', C: 'Holder Structure', D: 'Venice/Migration' };
+
+const REGIME_COLORS = {
+  accumulate: '#5B7553', hold: '#8B6914', neutral: '#6B7280',
+  reduce: '#B8572A', hedge: '#8B2500'
+};
+
+function classifyRegime(score) {
+  if (score > 68) return 'accumulate';
+  if (score > 55) return 'hold';
+  if (score > 38) return 'neutral';
+  if (score > 22) return 'reduce';
+  return 'hedge';
+}
+
+const DUNE_MAP = {
+  panel_1a: 6953031, panel_1b: 6953009, panel_1c: 6953035,
+  panel_2a: 6953018, panel_2b: 6953223,
+  panel_3: 6953042, panel_4: 6953185, panel_5: 6953189,
+  panel_6: 6953202, panel_7: 6953047, panel_8: 6953054,
+  panel_9a: 6953024, panel_9b: 6953215,
+  panel_10a: 6953027, panel_10b: 6953217, panel_10c: 6953221
+};
+
+const PANEL_META = [
+  { id: 'panel_1a', name: 'STH-NUPL Cost Basis', section: 'A', signal_type: 'coincident', hypothesis: 'Per-wallet unrealized PnL classifies sentiment', leadTime: '72h' },
+  { id: 'panel_1b', name: 'STH-NUPL Gauge', section: 'A', signal_type: 'leading', hypothesis: 'Aggregate regime classifies market phase', leadTime: '24-72h' },
+  { id: 'panel_1c', name: 'STH-NUPL Time Series', section: 'A', signal_type: 'coincident', hypothesis: '30-day sentiment evolution tracking', leadTime: '7-14d' },
+  { id: 'panel_2a', name: 'CEX Netflows Daily', section: 'B', signal_type: 'leading', hypothesis: 'Exchange inflows signal sell pressure', leadTime: '12-48h' },
+  { id: 'panel_2b', name: 'CEX Netflows Cumulative', section: 'B', signal_type: 'leading', hypothesis: 'Sustained outflows = accumulation', leadTime: '12-48h' },
+  { id: 'panel_3',  name: 'Holder Vintage Bands', section: 'C', signal_type: 'coincident', hypothesis: 'Cohort aging reveals conviction depth', leadTime: '7-14d' },
+  { id: 'panel_4',  name: 'sVVV Staking Flows', section: 'A', signal_type: 'leading', hypothesis: 'Net staking = supply lock conviction', leadTime: '24-72h' },
+  { id: 'panel_5',  name: 'Whale Wallet Monitor', section: 'B', signal_type: 'leading', hypothesis: 'Smart money wallet activity tracking', leadTime: 'Daily' },
+  { id: 'panel_6',  name: 'DIEM Minting Activity', section: 'D', signal_type: 'leading', hypothesis: 'Mint surge = API demand catalyst', leadTime: '24-72h' },
+  { id: 'panel_7',  name: 'DEX Buy/Sell Ratio', section: 'B', signal_type: 'coincident', hypothesis: 'Trade direction reveals market pressure', leadTime: '7-14d' },
+  { id: 'panel_8',  name: 'Transfer Volume vs Price', section: 'C', signal_type: 'coincident', hypothesis: 'Volume-price divergence detection', leadTime: '7-14d' },
+  { id: 'panel_9a', name: 'First-Time Stakers', section: 'D', signal_type: 'leading', hypothesis: 'Post-ban staker acceleration = migration', leadTime: 'Daily' },
+  { id: 'panel_9b', name: 'Pre/Post Ban Comparison', section: 'D', signal_type: 'coincident', hypothesis: 'Ban moment acceleration factor', leadTime: '7-14d' },
+  { id: 'panel_10a', name: 'DIEM Mint Acceleration', section: 'D', signal_type: 'leading', hypothesis: '>2x = notable, >5x = migration wave', leadTime: 'Daily' },
+  { id: 'panel_10b', name: 'New DIEM Minters', section: 'D', signal_type: 'coincident', hypothesis: 'First-time minters = new compute consumers', leadTime: '7-14d' },
+  { id: 'panel_10c', name: 'Conversion Funnel', section: 'D', signal_type: 'lagging', hypothesis: 'Buyers to stakers to minters funnel post-ban', leadTime: 'Monthly' },
+];
+
+const WEIGHT_BARS = [
+  { label: 'Staking Flow', pct: 15, color: SECTION_COLORS.A },
+  { label: 'STH-NUPL', pct: 12, color: SECTION_COLORS.A },
+  { label: 'CEX Inflow', pct: 12, color: SECTION_COLORS.B },
+  { label: 'Smart Money', pct: 10, color: SECTION_COLORS.B },
+  { label: 'sVVV Ratio', pct: 10, color: SECTION_COLORS.A },
+  { label: 'DEX Ratio', pct: 8, color: SECTION_COLORS.B },
+  { label: 'Holder Bands', pct: 8, color: SECTION_COLORS.C },
+  { label: 'Transfer Vol', pct: 7, color: SECTION_COLORS.C },
+  { label: 'DIEM Mint', pct: 8, color: SECTION_COLORS.D },
+  { label: 'Migration', pct: 10, color: SECTION_COLORS.D },
+];
+
+function buildMockData() {
+  const now = new Date().toISOString();
+  const panels = PANEL_META.map(m => ({
+    panel_id: m.id + '_' + m.name.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+    name: m.name,
+    section: m.section,
+    signal_type: m.signal_type,
+    data_type: 'time_series',
+    score: +(Math.random() * 100).toFixed(1),
+    weight: +(Math.random() * 0.15).toFixed(3),
+    n_events: Math.floor(Math.random() * 10),
+    validated: Math.random() > 0.6,
+    best_p_value: Math.random() > 0.5 ? +(Math.random() * 0.1).toFixed(4) : null,
+    best_hit_rate: Math.random() > 0.5 ? +(50 + Math.random() * 40).toFixed(1) : null,
+    best_window: Math.random() > 0.5 ? Math.floor(5 + Math.random() * 25) + 'd' : null,
+    latest_signal: Math.random() > 0.4
+      ? { direction: Math.random() > 0.5 ? 'bullish' : 'bearish', strength: +(Math.random()).toFixed(2), date: now }
+      : null
+  }));
+  const sectionScores = {};
+  ['A','B','C','D'].forEach(s => {
+    const sp = panels.filter(p => p.section === s);
+    sectionScores[s] = {
+      composite: +(sp.reduce((a,p) => a + p.score, 0) / (sp.length || 1)).toFixed(1),
+      n_panels: sp.length,
+      n_active: sp.filter(p => p.n_events > 0).length
+    };
+  });
+  const composite = +(panels.reduce((a,p) => a + p.score, 0) / panels.length).toFixed(2);
+  return {
+    schema_version: '1.0',
+    generated_at: now,
+    composite_score: composite,
+    regime: classifyRegime(composite).toUpperCase(),
+    sections: sectionScores,
+    panels,
+    backtest_summary: { total_events: panels.reduce((a,p) => a + p.n_events, 0), validated_panels: panels.filter(p => p.validated).length },
+    _mock: true
+  };
+}
+
+/* ── Shared styles ───────────────────────────────────────────────── */
+
+const S = {
+  headerWrap: {
+    background: 'linear-gradient(135deg, #2D2A24 0%, #3D3830 100%)',
+    borderBottom: '3px solid #5B7553',
+    padding: '18px 28px',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12
+  },
+  headerLeft: { display: 'flex', flexDirection: 'column', gap: 2 },
+  headerLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: '#A8A28C', textTransform: 'uppercase' },
+  headerTitle: { fontFamily: "'DM Serif Display', serif", fontSize: 26, color: '#FAF8F2' },
+  headerAddr: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#8A8474', marginTop: 2 },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
+  bigScore: { fontFamily: "'DM Serif Display', serif", fontSize: 48, lineHeight: 1 },
+  regimePill: (regime) => ({
+    display: 'inline-block', padding: '3px 12px', borderRadius: 12,
+    fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase',
+    color: '#FAF8F2',
+    background: REGIME_COLORS[regime] || '#6B7280'
+  }),
+  staleBadge: {
+    display: 'inline-block', background: '#B8572A', color: '#fff', fontSize: 10,
+    fontWeight: 700, padding: '2px 8px', borderRadius: 4, letterSpacing: 1, marginLeft: 8
+  },
+  navBar: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    background: '#F0EDE4', padding: '0 24px', borderBottom: '1px solid #DDD8CA', flexWrap: 'wrap'
+  },
+  navBtn: (active) => ({
+    padding: '10px 16px', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+    letterSpacing: 0.5, border: 'none', background: 'none',
+    borderBottom: active ? '2px solid #2D2A24' : '2px solid transparent',
+    color: active ? '#2D2A24' : '#8A8474',
+    fontFamily: "'JetBrains Mono', monospace"
+  }),
+  body: { padding: '20px 28px', maxWidth: 1400, margin: '0 auto' },
+  sectionGroupTitle: (color) => ({
+    fontFamily: "'DM Serif Display', serif", fontSize: 16, color,
+    borderBottom: `2px solid ${color}`, paddingBottom: 4, marginBottom: 12, marginTop: 24
+  }),
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 },
+  card: (sectionColor) => ({
+    background: '#fff', borderRadius: 8, borderLeft: `3px solid ${sectionColor}`,
+    padding: '14px 16px', cursor: 'pointer', transition: 'box-shadow 0.15s',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+  }),
+  cardId: { fontSize: 9, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: '#8A8474' },
+  cardName: { fontFamily: "'DM Serif Display', serif", fontSize: 14, color: '#2D2A24', margin: '4px 0 6px' },
+  cardScore: (regime) => ({ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: REGIME_COLORS[regime] || '#6B7280' }),
+  cardMeta: { fontSize: 10, color: '#8A8474', marginTop: 6, lineHeight: 1.6 },
+  cardHypo: { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 11, color: '#6B6458', marginTop: 6, lineHeight: 1.5 },
+  miniPill: (regime) => ({
+    display: 'inline-block', padding: '1px 8px', borderRadius: 8,
+    fontSize: 9, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase',
+    color: '#fff', background: REGIME_COLORS[regime] || '#6B7280', marginLeft: 8
+  }),
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 11, marginTop: 16 },
+  th: { textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #DDD8CA', fontWeight: 700, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', color: '#8A8474' },
+  td: (idx) => ({ padding: '8px 10px', borderBottom: '1px solid #EDEAE2', background: idx % 2 === 0 ? '#fff' : '#FAF8F2' }),
+  footer: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+    padding: '14px 28px', background: '#F0EDE4', borderTop: '1px solid #DDD8CA', marginTop: 28
+  },
+  footerLabel: { fontSize: 10, fontWeight: 600, letterSpacing: 1.2, color: '#8A8474' },
+  btn: (bg) => ({
+    padding: '6px 16px', border: 'none', borderRadius: 4, cursor: 'pointer',
+    fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#FAF8F2', background: bg,
+    fontFamily: "'JetBrains Mono', monospace"
+  }),
+  weightBarWrap: { display: 'flex', height: 28, borderRadius: 6, overflow: 'hidden', marginTop: 20, border: '1px solid #DDD8CA' },
+  weightSeg: (color, pct) => ({
+    width: pct + '%', background: color, display: 'flex', alignItems: 'center',
+    justifyContent: 'center', fontSize: 8, fontWeight: 700, color: '#FAF8F2',
+    letterSpacing: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', minWidth: 0
+  }),
+  textarea: {
+    width: '100%', minHeight: 120, fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
+    padding: 12, border: '1px solid #DDD8CA', borderRadius: 6, background: '#fff',
+    resize: 'vertical', outline: 'none', color: '#2D2A24'
+  },
+  noteCard: {
+    background: '#fff', borderRadius: 6, padding: '10px 14px', marginBottom: 8,
+    border: '1px solid #EDEAE2'
+  },
+};
+
+/* ── Helpers ──────────────────────────────────────────────────────── */
+
+function duneUrl(panelId) {
+  const shortId = panelId.replace(/_[a-z_]+$/, '').replace('panel_', 'panel_');
+  // Try exact match first, then strip trailing descriptors
+  for (const [key, qid] of Object.entries(DUNE_MAP)) {
+    if (panelId.startsWith(key)) return `https://dune.com/queries/${qid}`;
+  }
+  return null;
+}
+
+function panelShortId(panelId) {
+  for (const key of Object.keys(DUNE_MAP)) {
+    if (panelId.startsWith(key)) return key;
+  }
+  return panelId;
+}
+
+function metaForPanel(panel) {
+  for (const m of PANEL_META) {
+    if (panel.panel_id && panel.panel_id.startsWith(m.id)) return m;
+  }
+  // fallback: match by name
+  return PANEL_META.find(m => m.name === panel.name) || {};
+}
+
+function isStale(generatedAt) {
+  if (!generatedAt) return true;
+  return (Date.now() - new Date(generatedAt).getTime()) > 3600000;
+}
+
+function fmtTime(iso) {
+  if (!iso) return '--';
+  const d = new Date(iso);
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/* ── Components ──────────────────────────────────────────────────── */
+
+function Header({ data }) {
+  const regime = (data.regime || 'neutral').toLowerCase();
+  const stale = isStale(data.generated_at);
+  return (
+    <div style={S.headerWrap}>
+      <div style={S.headerLeft}>
+        <div style={S.headerLabel}>S2F Capital &bull; On-Chain Intelligence</div>
+        <div style={S.headerTitle}>VVV Signal Dashboard</div>
+        <div style={S.headerAddr}>
+          VVV: 0x3fC...C55 &nbsp;&bull;&nbsp; sVVV: 0x5B1...912 &nbsp;&bull;&nbsp; DIEM: 0x5Ef...7C4
+        </div>
+      </div>
+      <div style={S.headerRight}>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ ...S.bigScore, color: REGIME_COLORS[regime] || '#FAF8F2' }}>
+            {data.composite_score != null ? data.composite_score.toFixed(1) : '--'}
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <span style={S.regimePill(regime)}>{regime}</span>
+            {stale && <span style={S.staleBadge}>STALE</span>}
+          </div>
+          <div style={{ fontSize: 9, color: '#8A8474', marginTop: 4 }}>
+            Last: {fmtTime(data.generated_at)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NavBar({ sectionFilter, setSectionFilter, viewTab, setViewTab }) {
+  const sections = [
+    { key: 'all', label: 'All Panels' },
+    { key: 'A', label: 'A: STH-NUPL & Staking' },
+    { key: 'B', label: 'B: Flow Analysis' },
+    { key: 'C', label: 'C: Holder Structure' },
+    { key: 'D', label: 'D: Venice/Migration' },
+  ];
+  const views = ['Grid', 'Table', 'Thesis'];
+  return (
+    <div style={S.navBar}>
+      <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+        {sections.map(s => (
+          <button key={s.key} style={S.navBtn(sectionFilter === s.key)} onClick={() => setSectionFilter(s.key)}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex' }}>
+        {views.map(v => (
+          <button key={v} style={S.navBtn(viewTab === v)} onClick={() => setViewTab(v)}>
+            {v}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PanelCard({ panel }) {
+  const meta = metaForPanel(panel);
+  const sColor = SECTION_COLORS[panel.section] || '#4A5568';
+  const regime = classifyRegime(panel.score || 0);
+  const url = duneUrl(panel.panel_id || meta.id);
+
+  return (
+    <div
+      style={S.card(sColor)}
+      onClick={() => url && window.open(url, '_blank')}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 3px 12px rgba(0,0,0,0.1)'}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'}
+    >
+      <div style={S.cardId}>
+        {panelShortId(panel.panel_id || meta.id)} &bull; {SECTION_NAMES[panel.section] || panel.section}
+      </div>
+      <div style={S.cardName}>{panel.name || meta.name}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={S.cardScore(regime)}>{panel.score != null ? panel.score.toFixed(1) : '--'}</span>
+        <span style={S.miniPill(regime)}>{regime}</span>
+      </div>
+      <div style={S.cardMeta}>
+        Lead: {meta.leadTime || '--'} &nbsp;&bull;&nbsp;
+        Events: {panel.n_events ?? '--'} &nbsp;&bull;&nbsp;
+        Type: {(panel.signal_type || meta.signal_type || '--')}
+        {panel.latest_signal && (
+          <span> &nbsp;&bull;&nbsp; Signal: <span style={{ color: panel.latest_signal.direction === 'bullish' ? '#5B7553' : '#B8572A', fontWeight: 700 }}>
+            {panel.latest_signal.direction} ({panel.latest_signal.strength})
+          </span></span>
+        )}
+      </div>
+      <div style={S.cardHypo}>{meta.hypothesis || ''}</div>
+    </div>
+  );
+}
+
+function GridView({ panels, sectionFilter }) {
+  const filtered = sectionFilter === 'all' ? panels : panels.filter(p => p.section === sectionFilter);
+
+  const typeGroups = [
+    { type: 'leading', label: 'Leading Signals', color: '#5B7553' },
+    { type: 'coincident', label: 'Coincident Signals', color: '#8B6914' },
+    { type: 'lagging', label: 'Lagging Signals', color: '#8A8474' },
+  ];
+
+  return (
+    <div>
+      {typeGroups.map(g => {
+        const meta_lookup = (p) => metaForPanel(p);
+        const items = filtered.filter(p => {
+          const m = meta_lookup(p);
+          return (p.signal_type || m.signal_type) === g.type;
+        });
+        if (items.length === 0) return null;
+        return (
+          <div key={g.type}>
+            <div style={S.sectionGroupTitle(g.color)}>{g.label}</div>
+            <div style={S.grid}>
+              {items.map((p, i) => <PanelCard key={p.panel_id || i} panel={p} />)}
+            </div>
+          </div>
+        );
+      })}
+
+      {sectionFilter === 'all' && <WeightBar />}
+    </div>
+  );
+}
+
+function WeightBar() {
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#8A8474', marginTop: 24, textTransform: 'uppercase' }}>
+        Weight Allocation
+      </div>
+      <div style={S.weightBarWrap}>
+        {WEIGHT_BARS.map((w, i) => (
+          <div key={i} style={S.weightSeg(w.color, w.pct)} title={`${w.label}: ${w.pct}%`}>
+            {w.pct >= 8 ? `${w.label} ${w.pct}%` : `${w.pct}%`}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 6 }}>
+        {WEIGHT_BARS.map((w, i) => (
+          <div key={i} style={{ fontSize: 9, color: '#8A8474', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: w.color }} />
+            {w.label} {w.pct}%
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TableView({ panels, sectionFilter }) {
+  const filtered = sectionFilter === 'all' ? panels : panels.filter(p => p.section === sectionFilter);
+  const cols = ['Panel', 'Signal', 'Score', 'Regime', 'Type', 'Lead', 'Events', 'p-value', 'Valid'];
+
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 16 }}>
+      <table style={S.table}>
+        <thead>
+          <tr>{cols.map(c => <th key={c} style={S.th}>{c}</th>)}</tr>
+        </thead>
+        <tbody>
+          {filtered.map((p, idx) => {
+            const meta = metaForPanel(p);
+            const regime = classifyRegime(p.score || 0);
+            const url = duneUrl(p.panel_id || meta.id);
+            return (
+              <tr
+                key={p.panel_id || idx}
+                style={{ cursor: 'pointer' }}
+                onClick={() => url && window.open(url, '_blank')}
+                onMouseEnter={e => e.currentTarget.style.background = '#F5F2E8'}
+                onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#FAF8F2'}
+              >
+                <td style={{ ...S.td(idx), fontWeight: 600, color: SECTION_COLORS[p.section] }}>
+                  {panelShortId(p.panel_id || meta.id)}
+                </td>
+                <td style={S.td(idx)}>{p.name || meta.name}</td>
+                <td style={{ ...S.td(idx), fontWeight: 700, color: REGIME_COLORS[regime] }}>
+                  {p.score != null ? p.score.toFixed(1) : '--'}
+                </td>
+                <td style={S.td(idx)}><span style={S.miniPill(regime)}>{regime}</span></td>
+                <td style={S.td(idx)}>{p.signal_type || meta.signal_type || '--'}</td>
+                <td style={S.td(idx)}>{meta.leadTime || '--'}</td>
+                <td style={S.td(idx)}>{p.n_events ?? '--'}</td>
+                <td style={S.td(idx)}>{p.best_p_value != null ? p.best_p_value.toFixed(4) : '--'}</td>
+                <td style={S.td(idx)}>
+                  {p.validated
+                    ? <span style={{ color: '#5B7553', fontWeight: 700 }}>YES</span>
+                    : <span style={{ color: '#8A8474' }}>--</span>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ThesisView({ data }) {
+  const [notes, setNotes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vvv-analyst-notes') || '[]'); } catch { return []; }
+  });
+  const [draft, setDraft] = useState('');
+  const regime = (data.regime || 'neutral').toLowerCase();
+
+  function addNote() {
+    if (!draft.trim()) return;
+    const entry = {
+      text: draft.trim(),
+      regime,
+      score: data.composite_score,
+      timestamp: new Date().toISOString()
+    };
+    const updated = [entry, ...notes].slice(0, 50);
+    setNotes(updated);
+    localStorage.setItem('vvv-analyst-notes', JSON.stringify(updated));
+    setDraft('');
+  }
+
+  return (
+    <div style={{ marginTop: 20, maxWidth: 800 }}>
+      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 18, color: '#2D2A24', marginBottom: 12 }}>
+        Analyst Gate
+      </div>
+      <textarea
+        style={S.textarea}
+        placeholder="Log your thesis, observations, or trade rationale..."
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) addNote(); }}
+      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <span style={{ fontSize: 9, color: '#8A8474' }}>Ctrl+Enter to submit</span>
+        <button style={S.btn('#2D2A24')} onClick={addNote}>Add Note</button>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#8A8474', textTransform: 'uppercase', marginBottom: 10 }}>
+          Recent Notes ({Math.min(notes.length, 20)})
+        </div>
+        {notes.slice(0, 20).map((n, i) => (
+          <div key={i} style={S.noteCard}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={S.miniPill(n.regime || 'neutral')}>
+                {n.regime || 'neutral'} &bull; {n.score != null ? n.score.toFixed(1) : '--'}
+              </span>
+              <span style={{ fontSize: 9, color: '#8A8474' }}>{fmtTime(n.timestamp)}</span>
+            </div>
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: '#2D2A24', whiteSpace: 'pre-wrap' }}>
+              {n.text}
+            </div>
+          </div>
+        ))}
+        {notes.length === 0 && (
+          <div style={{ fontSize: 12, color: '#8A8474', fontStyle: 'italic' }}>No notes yet.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Footer({ data, onRefresh, loading }) {
+  const active = data.panels ? data.panels.filter(p => (p.n_events || 0) > 0).length : 0;
+  const total = data.panels ? data.panels.length : 16;
+  return (
+    <div style={S.footer}>
+      <div style={S.footerLabel}>
+        {total} PANELS &bull; {active} RETURNING DATA
+        {data._mock && <span style={{ color: '#B8572A', marginLeft: 8 }}>(MOCK DATA)</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button style={S.btn('#5B7553')} onClick={onRefresh} disabled={loading}>
+          {loading ? 'REFRESHING...' : 'REFRESH'}
+        </button>
+        <button style={S.btn('#2D2A24')} onClick={() => window.open('https://dune.com/joels2f', '_blank')}>
+          OPEN DUNE
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── App ──────────────────────────────────────────────────────────── */
+
+function App() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [viewTab, setViewTab] = useState('Grid');
+  const intervalRef = useRef(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/vvv-signal');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      // Merge metadata: ensure each panel has section/signal_type from our meta
+      if (json.panels) {
+        json.panels = json.panels.map(p => {
+          const m = metaForPanel(p);
+          return {
+            ...p,
+            section: p.section || m.section,
+            signal_type: p.signal_type || m.signal_type,
+          };
+        });
+      }
+      setData(json);
+    } catch (err) {
+      console.warn('Fetch failed, using mock data:', err.message);
+      setData(buildMockData());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    intervalRef.current = setInterval(fetchData, 300000); // 5 min
+    return () => clearInterval(intervalRef.current);
+  }, [fetchData]);
+
+  if (!data) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "'DM Serif Display', serif", fontSize: 20, color: '#8A8474' }}>
+        Loading VVV Signal Intelligence...
+      </div>
+    );
+  }
+
+  // Build enriched panel list: if API returned panels use those, otherwise build from meta
+  const panels = data.panels && data.panels.length > 0
+    ? data.panels
+    : PANEL_META.map(m => ({ panel_id: m.id, name: m.name, section: m.section, signal_type: m.signal_type, score: 0, n_events: 0 }));
+
+  return (
+    <div>
+      <Header data={data} />
+      <NavBar sectionFilter={sectionFilter} setSectionFilter={setSectionFilter} viewTab={viewTab} setViewTab={setViewTab} />
+      <div style={S.body}>
+        {viewTab === 'Grid' && <GridView panels={panels} sectionFilter={sectionFilter} />}
+        {viewTab === 'Table' && <TableView panels={panels} sectionFilter={sectionFilter} />}
+        {viewTab === 'Thesis' && <ThesisView data={data} />}
+      </div>
+      <Footer data={data} onRefresh={fetchData} loading={loading} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
