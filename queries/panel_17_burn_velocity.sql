@@ -13,7 +13,7 @@ WITH raw_burns AS (
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
       AND "to" = 0x0000000000000000000000000000000000000000
       AND amount < 500000  -- exclude one-time airdrop burn (33.7M)
-      AND block_time >= NOW() - INTERVAL '26' week
+      AND block_time >= NOW() - INTERVAL '182' day
     GROUP BY 1
 )
 SELECT

@@ -988,10 +988,10 @@ Tracks the VVV deflationary flywheel: revenue buyback burns, DIEM implied yield,
 
 | Panel | Name | Status | Query ID | Description |
 |---|---|---|---|---|
-| 17 | Burn Velocity | PENDING DEPLOYMENT | PENDING | Weekly burns with 4-week MA and WoW growth. Excludes >500K airdrop burn. |
-| 18 | DIEM Implied Yield | PENDING DEPLOYMENT | PENDING | Daily DIEM price from Aerodrome, implied yield (365/price), discount vs $7,300 perpetuity. |
-| 19 | sVVV Net Staking Flow | PENDING DEPLOYMENT | PENDING | Daily net staking with 7d/30d MAs, cumulative, trend classification. |
-| 20 | Flywheel Health Ratio | PENDING DEPLOYMENT | PENDING | Weekly burn-to-unstake ratio. >1.0 tightening, <0.5 leaking. |
+| 17 | Burn Velocity | LIVE | 6988823 | Weekly burns with 4-week MA and WoW growth. Excludes >500K airdrop burn. |
+| 18 | DIEM Implied Yield | LIVE | 6988826 | Daily DIEM price from Aerodrome, implied yield (365/price), discount vs $7,300 perpetuity. |
+| 19 | sVVV Net Staking Flow | LIVE | 6988829 | Daily net staking with 7d/30d MAs, cumulative, trend classification. |
+| 20 | Flywheel Health Ratio | LIVE | 6988831 | Weekly burn-to-unstake ratio. >1.0 tightening, <0.5 leaking. |
 
 ### Diagnostic Queries (pre-deployment verification)
 

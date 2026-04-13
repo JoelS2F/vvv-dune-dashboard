@@ -11,7 +11,7 @@ WITH weekly_burns AS (
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
       AND "to" = 0x0000000000000000000000000000000000000000
       AND amount < 500000  -- exclude one-time airdrop burn
-      AND block_time >= NOW() - INTERVAL '26' week
+      AND block_time >= NOW() - INTERVAL '182' day
     GROUP BY 1
 ),
 weekly_unstakes AS (
@@ -22,7 +22,7 @@ weekly_unstakes AS (
     WHERE blockchain = 'base'
       AND contract_address = 0xacFE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf
       AND "from" = 0x321b7ff75154472B18EDb199033fF4D116F340Ff
-      AND block_time >= NOW() - INTERVAL '26' week
+      AND block_time >= NOW() - INTERVAL '182' day
     GROUP BY 1
 ),
 combined AS (

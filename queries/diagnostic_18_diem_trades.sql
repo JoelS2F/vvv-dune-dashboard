@@ -11,8 +11,8 @@ SELECT
 FROM dex.trades
 WHERE blockchain = 'base'
   AND (
-      token_bought_address = 0xf4d97f2da56e8c3098f3a8d538db636a2606a024
-      OR token_sold_address = 0xf4d97f2da56e8c3098f3a8d538db636a2606a024
+      token_bought_address = 0xf4d97f2da56e8c3098f3a8d538db630a2606a024
+      OR token_sold_address = 0xf4d97f2da56e8c3098f3a8d538db630a2606a024
   )
   AND block_time >= NOW() - INTERVAL '180' day
 ORDER BY block_time DESC
