@@ -979,3 +979,24 @@ Anthropic OpenClaw ban enforcement timestamp. Panels 9A, 9B, 10A, 10B, 10C split
 On **April 4, 2026 at 19:00 UTC (12pm PT)**, Anthropic blocked Claude Pro/Max subscriptions from powering OpenClaw and other third-party agent frameworks. OpenClaw had ~135K active instances, many running on subsidized $20/month Claude subscriptions that consumed $1,000-5,000/day in equivalent API costs. Venice AI is OpenClaw's officially recommended model provider (since March 2026). Venice's DIEM token provides $1/day of perpetual API compute credit per token — making it the only option where displaced agent operators can lock in fixed compute costs permanently rather than renting from another provider subject to future pricing changes. This dashboard exists to provide on-chain proof of whether that migration is actually happening.
 
 **Thesis test:** If Panels 9A/10A show a sustained >2x acceleration in post-April-4 first-time stakers and DIEM mint velocity relative to the March 2026 baseline, the migration is real. If Panel 10C shows conversion rates >30% (buyers → stakers → minters), the demand is usage-driven rather than speculative.
+
+---
+
+## Section 5: Flywheel & Repricing (Panels 17-20)
+
+Tracks the VVV deflationary flywheel: revenue buyback burns, DIEM implied yield, staking flow trends, and the composite burn-to-unstake health ratio.
+
+| Panel | Name | Status | Query ID | Description |
+|---|---|---|---|---|
+| 17 | Burn Velocity | PENDING DEPLOYMENT | PENDING | Weekly burns with 4-week MA and WoW growth. Excludes >500K airdrop burn. |
+| 18 | DIEM Implied Yield | PENDING DEPLOYMENT | PENDING | Daily DIEM price from Aerodrome, implied yield (365/price), discount vs $7,300 perpetuity. |
+| 19 | sVVV Net Staking Flow | PENDING DEPLOYMENT | PENDING | Daily net staking with 7d/30d MAs, cumulative, trend classification. |
+| 20 | Flywheel Health Ratio | PENDING DEPLOYMENT | PENDING | Weekly burn-to-unstake ratio. >1.0 tightening, <0.5 leaking. |
+
+### Diagnostic Queries (pre-deployment verification)
+
+| Diagnostic | Tests | Expected |
+|---|---|---|
+| diagnostic_17_burns.sql | VVV transfers to null address | ~3-4 monthly burns since Dec 2025 |
+| diagnostic_18_diem_trades.sql | DIEM in dex.trades | DIEM/WETH or DIEM/USDC on Aerodrome |
+| diagnostic_19_staking_flows.sql | VVV to/from sVVV contract | Daily stake/unstake activity |

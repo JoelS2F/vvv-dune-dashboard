@@ -1,0 +1,22 @@
+{
+  "panel_1a_sth_nupl_cost_basis": {"query_id": 6953031, "name": "[S2F] VVV - STH-NUPL Cost Basis Distribution", "url": "https://dune.com/queries/6953031"},
+  "panel_1b_sth_nupl_gauge": {"query_id": 6953009, "name": "[S2F] VVV - STH-NUPL Aggregate Gauge", "url": "https://dune.com/queries/6953009"},
+  "panel_1c_sth_nupl_time_series": {"query_id": 6953035, "name": "[S2F] VVV - STH-NUPL Time Series (30d)", "url": "https://dune.com/queries/6953035"},
+  "panel_2a_cex_netflows_daily": {"query_id": 6953018, "name": "[S2F] VVV - CEX Netflows (Daily)", "url": "https://dune.com/queries/6953018", "note": "0 rows - needs CEX address supplement"},
+  "panel_2b_cex_netflows_cumulative": {"query_id": 6953223, "name": "[S2F] VVV - CEX Netflows (Cumulative)", "url": "https://dune.com/queries/6953223", "note": "0 rows - needs CEX address supplement"},
+  "panel_3_holder_vintage_bands": {"query_id": 6953042, "name": "[S2F] VVV - Holder Vintage Bands", "url": "https://dune.com/queries/6953042"},
+  "panel_4_svvv_staking_flows": {"query_id": 6953185, "name": "[S2F] VVV - sVVV Staking Flows", "url": "https://dune.com/queries/6953185"},
+  "panel_5_whale_wallet_monitor": {"query_id": 6953189, "name": "[S2F] VVV - Whale Wallet Monitor", "url": "https://dune.com/queries/6953189"},
+  "panel_6_diem_minting": {"query_id": 6953202, "name": "[S2F] VVV - DIEM Minting Activity", "url": "https://dune.com/queries/6953202"},
+  "panel_7_dex_buy_sell_ratio": {"query_id": 6953047, "name": "[S2F] VVV - DEX Buy/Sell Ratio", "url": "https://dune.com/queries/6953047"},
+  "panel_8_volume_vs_price": {"query_id": 6953054, "name": "[S2F] VVV - Transfer Volume vs Price", "url": "https://dune.com/queries/6953054"},
+  "panel_9a_new_stakers_daily": {"query_id": 6953024, "name": "[S2F] VVV - First-Time Stakers Daily", "url": "https://dune.com/queries/6953024"},
+  "panel_9b_pre_post_ban_comparison": {"query_id": 6953215, "name": "[S2F] VVV - Pre-Ban vs Post-Ban Stakers", "url": "https://dune.com/queries/6953215"},
+  "panel_10a_diem_mint_acceleration": {"query_id": 6953027, "name": "[S2F] VVV - DIEM Mint Acceleration Ratio", "url": "https://dune.com/queries/6953027"},
+  "panel_10b_new_diem_minters": {"query_id": 6953217, "name": "[S2F] VVV - New DIEM Minter Wallets", "url": "https://dune.com/queries/6953217"},
+  "panel_10c_conversion_funnel": {"query_id": 6953221, "name": "[S2F] VVV - Conversion Funnel (Post-Ban)", "url": "https://dune.com/queries/6953221"},
+  "panel_17_burn_velocity": {"query_id": "PENDING", "name": "[S2F] VVV - Burn Velocity (Weekly)", "url": null, "section": "Flywheel & Repricing"},
+  "panel_18_diem_implied_yield": {"query_id": "PENDING", "name": "[S2F] VVV - DIEM Implied Yield", "url": null, "section": "Flywheel & Repricing"},
+  "panel_19_staking_flow": {"query_id": "PENDING", "name": "[S2F] VVV - sVVV Net Staking Flow", "url": null, "section": "Flywheel & Repricing"},
+  "panel_20_flywheel_ratio": {"query_id": "PENDING", "name": "[S2F] VVV - Flywheel Health Ratio", "url": null, "section": "Flywheel & Repricing"}
+}
