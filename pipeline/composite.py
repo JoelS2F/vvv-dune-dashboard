@@ -247,6 +247,190 @@ def extract_derivatives_from_diem(diem_data: dict | None) -> dict:
     }
 
 
+# ── Flywheel & Repricing scoring (Panels 17-20) ───────────────────────
+
+def score_burn_velocity(data: list[dict]) -> dict:
+    """Score Panel 17: Burn Velocity from weekly burn data."""
+    if not data:
+        return {"score": 50.0, "direction": "neutral", "strength": 0.5, "metadata": {}}
+
+    latest = data[0] if data else {}  # Most recent week (DESC order)
+    burn_4w_ma = latest.get("burn_4w_ma", 0)
+    wow_growth = latest.get("wow_growth_rate", 0)
+    tokens_burned = latest.get("tokens_burned", 0)
+
+    # Score on WoW growth + burn MA trend
+    if wow_growth > 0.20:
+        score = min(100, 80 + (wow_growth - 0.20) * 50)
+    elif wow_growth > 0:
+        score = 50 + wow_growth * 150  # 0-30 pts above neutral
+    elif wow_growth > -0.20:
+        score = 50 + wow_growth * 100  # 30-50
+    else:
+        score = max(0, 30 + (wow_growth + 0.20) * 50)
+
+    direction = "bullish" if score > 60 else "bearish" if score < 40 else "neutral"
+    strength = abs(score - 50) / 50
+
+    return {
+        "score": round(max(0, min(100, score)), 2),
+        "direction": direction,
+        "strength": round(min(1.0, strength), 3),
+        "metadata": {
+            "burn_weekly_vvv": tokens_burned,
+            "burn_4wk_ma": burn_4w_ma,
+            "burn_wow_growth_pct": round(wow_growth * 100, 1) if wow_growth else 0,
+        },
+    }
+
+
+def score_diem_implied_yield(data: list[dict]) -> dict:
+    """Score Panel 18: DIEM Implied Yield from daily trade data."""
+    if not data:
+        return {"score": 50.0, "direction": "neutral", "strength": 0.5, "metadata": {}}
+
+    latest = data[0] if data else {}
+    median_price = latest.get("median_price", 0)
+    implied_yield = latest.get("implied_yield_pct", 0)
+    discount = latest.get("discount_vs_perpetuity", 0.5)
+    yield_change_30d = latest.get("yield_change_30d", 0)
+
+    # Score on discount vs perpetuity — lower discount = more bullish
+    if discount < 0.30:
+        score = min(100, 80 + (0.30 - discount) * 100)
+    elif discount < 0.50:
+        score = 50 + (0.50 - discount) * 150  # 50-80 range
+    elif discount < 0.70:
+        score = 50 - (discount - 0.50) * 100  # 30-50 range
+    else:
+        score = max(0, 30 - (discount - 0.70) * 100)
+
+    direction = "bullish" if score > 60 else "bearish" if score < 40 else "neutral"
+    strength = abs(score - 50) / 50
+
+    return {
+        "score": round(max(0, min(100, score)), 2),
+        "direction": direction,
+        "strength": round(min(1.0, strength), 3),
+        "metadata": {
+            "diem_price_usd": round(median_price, 2) if median_price else 0,
+            "diem_implied_yield_pct": round(implied_yield, 2) if implied_yield else 0,
+            "diem_discount_vs_5pct": round(discount, 4) if discount else 0,
+            "diem_yield_30d_change_pct": round(yield_change_30d, 2) if yield_change_30d else 0,
+        },
+    }
+
+
+def score_staking_flow(data: list[dict]) -> dict:
+    """Score Panel 19: sVVV Net Staking Flow from daily data."""
+    if not data:
+        return {"score": 50.0, "direction": "neutral", "strength": 0.5, "metadata": {}}
+
+    latest = data[0] if data else {}
+    net_7d_ma = latest.get("net_flow_7d_ma", 0)
+    trend = latest.get("trend", "NEUTRAL")
+
+    # Count consecutive positive/negative 7d MA days
+    positive_days = 0
+    for row in data[:7]:
+        if (row.get("net_flow_7d_ma") or 0) > 0:
+            positive_days += 1
+
+    if positive_days >= 5:
+        score = min(100, 75 + (positive_days - 5) * 12.5)
+    elif positive_days >= 3:
+        score = 50 + (positive_days - 3) * 12.5
+    elif positive_days <= 2:
+        negative_days = 7 - positive_days
+        if negative_days >= 5:
+            score = max(0, 25 - (negative_days - 5) * 12.5)
+        else:
+            score = 50 - (negative_days - 2) * 10
+
+    direction = "bullish" if score > 60 else "bearish" if score < 40 else "neutral"
+    strength = abs(score - 50) / 50
+
+    return {
+        "score": round(max(0, min(100, score)), 2),
+        "direction": direction,
+        "strength": round(min(1.0, strength), 3),
+        "metadata": {
+            "staking_net_7d_ma": round(net_7d_ma, 2) if net_7d_ma else 0,
+            "staking_trend": trend,
+        },
+    }
+
+
+def score_flywheel_ratio(data: list[dict]) -> dict:
+    """Score Panel 20: Flywheel Health Ratio from weekly data."""
+    if not data:
+        return {"score": 50.0, "direction": "neutral", "strength": 0.5, "metadata": {}}
+
+    latest = data[0] if data else {}
+    ratio = latest.get("flywheel_ratio", 0)
+    status = latest.get("flywheel_status", "LEAKING")
+    ratio_4w_ma = latest.get("ratio_4w_ma", 0)
+
+    # Score on ratio level
+    if ratio >= 1.0:
+        score = min(100, 85 + (ratio - 1.0) * 15)
+    elif ratio >= 0.5:
+        score = 50 + (ratio - 0.5) * 70  # 50-85 range
+    elif ratio >= 0.1:
+        score = 20 + (ratio - 0.1) * 75  # 20-50 range
+    else:
+        score = max(0, ratio * 200)  # 0-20 range
+
+    direction = "bullish" if score > 60 else "bearish" if score < 40 else "neutral"
+    strength = abs(score - 50) / 50
+
+    return {
+        "score": round(max(0, min(100, score)), 2),
+        "direction": direction,
+        "strength": round(min(1.0, strength), 3),
+        "metadata": {
+            "flywheel_ratio": round(ratio, 4) if ratio else 0,
+            "flywheel_status": status,
+            "flywheel_ratio_4w_ma": round(ratio_4w_ma, 4) if ratio_4w_ma else 0,
+        },
+    }
+
+
+def extract_flywheel_data(all_raw_data: dict) -> dict:
+    """
+    Extract flywheel panel data from raw Dune exports and score all 4 panels.
+    Returns dict with per-panel scores + combined flywheel_repricing object.
+    """
+    p17 = score_burn_velocity(all_raw_data.get("panel_17_burn_velocity", []))
+    p18 = score_diem_implied_yield(all_raw_data.get("panel_18_diem_implied_yield", []))
+    p19 = score_staking_flow(all_raw_data.get("panel_19_staking_flow", []))
+    p20 = score_flywheel_ratio(all_raw_data.get("panel_20_flywheel_ratio", []))
+
+    # Section composite (weighted per plan)
+    section_score = (
+        p17["score"] * 0.35 +
+        p18["score"] * 0.25 +
+        p19["score"] * 0.25 +
+        p20["score"] * 0.15
+    )
+
+    return {
+        "panels": {
+            "panel_17_burn_velocity": p17,
+            "panel_18_diem_implied_yield": p18,
+            "panel_19_staking_flow": p19,
+            "panel_20_flywheel_ratio": p20,
+        },
+        "flywheel_repricing": {
+            **p17["metadata"],
+            **p18["metadata"],
+            **p19["metadata"],
+            **p20["metadata"],
+            "section_score": round(section_score, 2),
+        },
+    }
+
+
 # ── Risk flags ──────────────────────────────────────────────────────────
 
 def compute_risk_flags(diem_data: dict | None) -> list[dict]:
@@ -368,6 +552,7 @@ def build_composite(
     all_signals: dict[str, list[dict]],
     backtest_results: dict[str, dict],
     diem_data: dict | None = None,
+    flywheel_raw_data: dict | None = None,
     use_corrected_weights: bool = True,
 ) -> dict[str, Any]:
     """
@@ -420,6 +605,18 @@ def build_composite(
         "metadata": deriv_info["metadata"],
     }
 
+    # --- Flywheel & Repricing panels (17-20) ---
+    flywheel_info = extract_flywheel_data(flywheel_raw_data or {})
+    for pid, pdata in flywheel_info["panels"].items():
+        panel_scores[pid] = pdata["score"]
+        panel_details[pid] = {
+            "raw_score": pdata["score"],
+            "decayed_score": pdata["score"],  # Fresh Dune data, no decay
+            "data_age_days": 0.0,
+            "is_stale": False,
+            "metadata": pdata["metadata"],
+        }
+
     # --- Risk flags ---
     risk_flags = compute_risk_flags(diem_data)
 
@@ -454,6 +651,7 @@ def build_composite(
         "legacy_weights": legacy_weights,
         "risk_flags": risk_flags,
         "derivatives_panel": deriv_info,
+        "flywheel_repricing": flywheel_info.get("flywheel_repricing", {}),
         "stale_panels": stale_panels,
         "signal_quality": {
             "pct_correlation_justified": sum(

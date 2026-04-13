@@ -160,8 +160,22 @@ def stage_composite(
             except Exception as e:
                 log.warning("Could not load DIEM data: %s", e)
 
+    # Load flywheel panel raw data from Dune exports
+    from pipeline.fetch_dune import load_panel_data
+    flywheel_raw_data = {}
+    for pid in ("panel_17_burn_velocity", "panel_18_diem_implied_yield",
+                "panel_19_staking_flow", "panel_20_flywheel_ratio"):
+        rows = load_panel_data(pid, EXPORTS_DIR)
+        if rows:
+            flywheel_raw_data[pid] = rows
+            log.info("Loaded %d rows for %s", len(rows), pid)
+
     # Build composite (v2.0: with corrected weights, decay, derivatives, risk flags)
-    composite = build_composite(all_signals, backtest_results, diem_data=diem_data)
+    composite = build_composite(
+        all_signals, backtest_results,
+        diem_data=diem_data,
+        flywheel_raw_data=flywheel_raw_data,
+    )
 
     # Build full state
     state = build_signal_state(

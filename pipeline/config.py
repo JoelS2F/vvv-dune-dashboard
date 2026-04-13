@@ -34,30 +34,36 @@ STALE_THRESHOLD_DAYS = 3   # Flag panels older than this as stale in dashboard
 # Mint/burn Pearson r < 0.05 — no demonstrated price predictive power
 # OI/funding r=0.385/0.366 — best forward predictors
 CORRECTED_WEIGHTS: dict[str, float] = {
-    # Tier 1: Demonstrated price correlation (0.45)
-    "panel_11_derivatives":             0.15,  # NEW — OI r=0.385, funding r=0.366
-    "panel_4_svvv_staking_flows":       0.12,  # Supply lock — whale confirmed
-    "panel_2b_cex_netflows_cumulative": 0.10,  # Exchange exodus
-    "panel_2a_cex_netflows_daily":      0.08,  # Daily flow direction
-    # Tier 2: Structural signals (0.25)
-    "panel_5_whale_wallet_monitor":     0.08,  # Smart money behavior
-    "panel_1c_sth_nupl_time_series":    0.07,  # STH sentiment
-    "panel_1a_sth_nupl_cost_basis":     0.05,  # Cost basis distribution
-    "panel_1b_sth_nupl_gauge":          0.05,  # Aggregate gauge
-    # Tier 3: Low/no correlation — monitoring only (0.15)
-    "panel_3_holder_vintage_bands":     0.03,  # Lagging
-    "panel_8_volume_vs_price":          0.03,  # Volume spikes
-    "panel_6_diem_minting":             0.02,  # REDUCED — r=0.003
-    "panel_10a_diem_mint_acceleration": 0.03,  # Acceleration > level
-    "panel_10b_new_diem_minters":       0.02,  # REDUCED
-    "panel_9b_pre_post_ban_comparison": 0.02,  # Lagging
-    # Tier 4: Near-zero (0.05)
-    "panel_9a_new_stakers_daily":       0.02,
-    "panel_7_dex_buy_sell_ratio":       0.02,
-    "panel_10c_conversion_funnel":      0.01,
+    # Tier 1: Demonstrated price correlation (0.45 → 0.3825 after ×0.85)
+    "panel_11_derivatives":             0.1275,  # OI r=0.385, funding r=0.366
+    "panel_4_svvv_staking_flows":       0.1020,  # Supply lock — whale confirmed
+    "panel_2b_cex_netflows_cumulative": 0.0850,  # Exchange exodus
+    "panel_2a_cex_netflows_daily":      0.0680,  # Daily flow direction
+    # Tier 2: Structural signals (0.25 → 0.2125)
+    "panel_5_whale_wallet_monitor":     0.0680,  # Smart money behavior
+    "panel_1c_sth_nupl_time_series":    0.0595,  # STH sentiment
+    "panel_1a_sth_nupl_cost_basis":     0.0425,  # Cost basis distribution
+    "panel_1b_sth_nupl_gauge":          0.0425,  # Aggregate gauge
+    # Tier 3: Low/no correlation — monitoring only (0.15 → 0.1275)
+    "panel_3_holder_vintage_bands":     0.0255,  # Lagging
+    "panel_8_volume_vs_price":          0.0255,  # Volume spikes
+    "panel_6_diem_minting":             0.0170,  # REDUCED — r=0.003
+    "panel_10a_diem_mint_acceleration": 0.0255,  # Acceleration > level
+    "panel_10b_new_diem_minters":       0.0170,  # REDUCED
+    "panel_9b_pre_post_ban_comparison": 0.0170,  # Lagging
+    # Tier 4: Near-zero (0.05 → 0.0425)
+    "panel_9a_new_stakers_daily":       0.0170,
+    "panel_7_dex_buy_sell_ratio":       0.0170,
+    "panel_10c_conversion_funnel":      0.0085,
+    # Section F: Flywheel & Repricing (0.15 total — new)
+    "panel_17_burn_velocity":           0.0525,  # 35% of section — burn momentum
+    "panel_18_diem_implied_yield":      0.0375,  # 25% — yield compression
+    "panel_19_staking_flow":            0.0375,  # 25% — net staking direction
+    "panel_20_flywheel_ratio":          0.0225,  # 15% — composite health
 }
 # Wallet spike EXCLUDED — 0% win rate 3-10d, anti-predictive
 # per cross-ref analysis 2026-04-06
+# Sections A-E scaled ×0.85 to accommodate Section F at 15% (2026-04-12)
 
 # ── Risk flag thresholds ─────────────────────────────────────────────────
 RISK_STAKE_VOL_ZSCORE = -0.7   # Flag net unstaking below this z-score
@@ -81,7 +87,7 @@ class PanelConfig:
     panel_id: str
     query_id: int
     name: str
-    section: Literal["A", "B", "C", "D", "E"]
+    section: Literal["A", "B", "C", "D", "E", "F"]
     signal_type: Literal["leading", "coincident", "lagging"]
     data_type: Literal["time_series", "snapshot"]
     signal_direction: Literal["bullish", "bearish", "directional"]
@@ -283,6 +289,55 @@ PANELS: dict[str, PanelConfig] = {
         signal_rule="Funnel stage counts showing healthy conversion from holder -> staker -> minter",
         date_column="snapshot_date",
         metric_column="count",
+    ),
+    # ── Section F: Flywheel & Repricing (panels 17-20) ─────────────────────
+    "panel_17_burn_velocity": PanelConfig(
+        panel_id="panel_17_burn_velocity",
+        query_id=6988823,
+        name="Burn Velocity (Weekly)",
+        section="F",
+        signal_type="leading",
+        data_type="time_series",
+        signal_direction="bullish",
+        signal_rule="Burn 4-week MA trending up + WoW growth >20% -> bullish supply reduction",
+        date_column="week",
+        metric_column="tokens_burned",
+    ),
+    "panel_18_diem_implied_yield": PanelConfig(
+        panel_id="panel_18_diem_implied_yield",
+        query_id=6988826,
+        name="DIEM Implied Yield",
+        section="F",
+        signal_type="leading",
+        data_type="time_series",
+        signal_direction="directional",
+        signal_rule="Discount vs perpetuity <30% -> bullish repricing; >50% -> bearish deep discount",
+        date_column="day",
+        metric_column="implied_yield_pct",
+    ),
+    "panel_19_staking_flow": PanelConfig(
+        panel_id="panel_19_staking_flow",
+        query_id=6988829,
+        name="sVVV Net Staking Flow (Enhanced)",
+        section="F",
+        signal_type="leading",
+        data_type="time_series",
+        signal_direction="directional",
+        signal_rule="7d MA positive 5+ days -> bullish accumulation; negative 5+ days -> bearish distribution",
+        date_column="day",
+        metric_column="net_flow",
+    ),
+    "panel_20_flywheel_ratio": PanelConfig(
+        panel_id="panel_20_flywheel_ratio",
+        query_id=6988831,
+        name="Flywheel Health Ratio",
+        section="F",
+        signal_type="leading",
+        data_type="time_series",
+        signal_direction="directional",
+        signal_rule="Burn-to-unstake ratio >1.0 sustained -> tightening flywheel; <0.5 -> leaking",
+        date_column="week",
+        metric_column="flywheel_ratio",
     ),
     # ── Synthetic panels (not from Dune — fed from other data sources) ────
     "panel_11_derivatives": PanelConfig(

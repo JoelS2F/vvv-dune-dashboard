@@ -85,7 +85,7 @@ def build_signal_state(
 
     # Section summaries
     sections: dict[str, dict] = {}
-    for sec in ("A", "B", "C", "D", "E"):
+    for sec in ("A", "B", "C", "D", "E", "F"):
         sec_panels = [p for p in panels_detail if p["section"] == sec]
         sec_scores = [p["score"] for p in sec_panels if p["weight"] > 0]
         sec_weights = [p["weight"] for p in sec_panels if p["weight"] > 0]
@@ -110,6 +110,7 @@ def build_signal_state(
         "signal_quality": signal_quality,
         "sections": sections,
         "panels": panels_detail,
+        "flywheel_repricing": composite.get("flywheel_repricing", {}),
         "backtest_summary": {
             "total_panels": len(PANELS),
             "validated_panels": sum(1 for r in backtest_results.values() if r.get("validated")),
